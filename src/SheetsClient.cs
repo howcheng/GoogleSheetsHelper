@@ -376,7 +376,7 @@ namespace GoogleSheetsHelper
 				},
 			};
 			// get the new width value in the response
-			string columnName = RequestCreator.ConvertIndexToColumnName(columnIndex);
+			string columnName = Utilities.ConvertIndexToColumnName(columnIndex);
 			var updateRequest = Service.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
 			{
 				Requests = new List<Request> { resizeRequest },
