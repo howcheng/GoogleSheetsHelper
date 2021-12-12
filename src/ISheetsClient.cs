@@ -5,18 +5,104 @@ using Google.Apis.Sheets.v4.Data;
 
 namespace GoogleSheetsHelper
 {
+	/// <summary>
+	/// Interface for classes that manipulate Google Sheets documents
+	/// </summary>
 	public interface ISheetsClient
 	{
+		/// <summary>
+		/// Gets the spreadsheet ID
+		/// </summary>
 		string SpreadsheetId { get; }
 
-		Task<Spreadsheet> AddSheet(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default);
-		Task<Spreadsheet> AddSheetIfNotExists(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default);
+		/// <summary>
+		/// Executes a group of <see cref="Request"/> objects as a batch
+		/// </summary>
+		/// <param name="requests"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task ExecuteRequests(IEnumerable<Request> requests, CancellationToken ct = default);
+
+		/// <summary>
+		/// Creates a new spreadsheet
+		/// </summary>
+		/// <param name="title"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task CreateSpreadsheet(string title, CancellationToken ct = default);
+		/// <summary>
+		/// Adds a new sheet to a spreadsheet
+		/// </summary>
+		/// <param name="title"></param>
+		/// <param name="columnCount"></param>
+		/// <param name="rowCount"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task<Sheet> AddSheet(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default);
+		/// <summary>
+		/// Gets a sheet by name or adds it if it doesn't exist yet
+		/// </summary>
+		/// <param name="sheetName"></param>
+		/// <param name="columnCount"></param>
+		/// <param name="rowCount"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task<Sheet> GetOrAddSheet(string sheetName, int? columnCount = null, int? rowCount = null, CancellationToken ct = default);
+		/// <summary>
+		/// Appends data to a sheet
+		/// </summary>
+		/// <param name="data"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
 		Task Append(IList<AppendRequest> data, CancellationToken ct = default);
+		/// <summary>
+		/// Clears data from a sheet
+		/// </summary>
+		/// <param name="range"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
 		Task ClearSheet(string range, CancellationToken ct = default);
+		/// <summary>
+		/// Deletes a sheet
+		/// </summary>
+		/// <param name="sheetName"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
 		Task<Spreadsheet> DeleteSheet(string sheetName, CancellationToken ct = default);
-		Task<IList<IList<object>>> GetOrAddSheet(string range, CancellationToken ct = default);
-		Task<IList<string>> GetSheets(CancellationToken ct = default);
+		/// <summary>
+		/// Renames a sheet
+		/// </summary>
+		/// <param name="oldName"></param>
+		/// <param name="newName"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task<Sheet> RenameSheet(string oldName, string newName, CancellationToken ct = default);
+		/// <summary>
+		/// Gets a list of sheet names
+		/// </summary>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task<IList<string>> GetSheetNames(CancellationToken ct = default);
+		/// <summary>
+		/// Gets the values from a sheet
+		/// </summary>
+		/// <param name="range">Cell range in A1 ("A1:C3") or R1C1 notation ("R1C1:R3C3"" -- row and column numbers)</param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
 		Task<IList<IList<object>>> GetValues(string range, CancellationToken ct = default);
+		/// <summary>
+		/// Updates values in a sheet
+		/// </summary>
+		/// <param name="data"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
 		Task Update(IList<UpdateRequest> data, CancellationToken ct = default);
+		/// <summary>
+		/// Resizes a column to be the width of its longest value
+		/// </summary>
+		/// <param name="sheetName"></param>
+		/// <param name="columnIndex"></param>
+		/// <returns></returns>
+		Task<int> AutoResizeColumn(string sheetName, int columnIndex);
 	}
 }

@@ -17,7 +17,6 @@ namespace GoogleSheetsHelper
 	{
 		private static readonly string ApplicationName = "GoogleSheetsHelper";
 
-		public string PathToCredentialsJson { get; private set; }
 		public string SpreadsheetId { get; private set; }
 
 		private Lazy<SheetsService> _service;
@@ -28,11 +27,9 @@ namespace GoogleSheetsHelper
 		private SheetsService Service { get => _service.Value; }
 		private Spreadsheet Spreadsheet { get => _spreadsheet.Value; }
 
-		public SheetsClient(string pathToCredentials, string spreadsheetId)
+		public SheetsClient(GoogleCredential credential)
 		{
-			PathToCredentialsJson = pathToCredentials;
-			SpreadsheetId = spreadsheetId;
-			_service = new Lazy<SheetsService>(() => Init());
+			_service = new Lazy<SheetsService>(() => Init(credential));
 			_policy = Policy.Handle<Google.GoogleApiException>()
 				.WaitAndRetryAsync(3, (count) =>
 				{
@@ -46,21 +43,17 @@ namespace GoogleSheetsHelper
 					_stopwatch.Reset();
 					_stopwatch.Start();
 				});
+		}
+
+		public SheetsClient(GoogleCredential credential, string spreadsheetId)
+			: this(credential)
+		{
+			SpreadsheetId = spreadsheetId;
 			ResetSpreadsheet();
 		}
 
-		private Task<Google.Apis.Requests.IDirectResponseSchema> ExecuteRequest(Func<Task<Google.Apis.Requests.IDirectResponseSchema>> request)
-			=> _policy.ExecuteAsync(request);
-
-		private SheetsService Init()
+		private SheetsService Init(GoogleCredential credential)
 		{
-			GoogleCredential credential;
-			using (var stream = new FileStream(PathToCredentialsJson, FileMode.Open, FileAccess.Read))
-			{
-				var scopes = new[] { SheetsService.Scope.Spreadsheets };
-				credential = GoogleCredential.FromStream(stream).CreateScoped(scopes);
-			}
-
 			var service = new SheetsService(new BaseClientService.Initializer()
 			{
 				HttpClientInitializer = credential,
@@ -70,9 +63,26 @@ namespace GoogleSheetsHelper
 			return service;
 		}
 
+		private Task<Google.Apis.Requests.IDirectResponseSchema> ExecuteRequest(Func<CancellationToken, Task<Google.Apis.Requests.IDirectResponseSchema>> request, CancellationToken ct)
+			=> _policy.ExecuteAsync(request, ct);
+
 		private void ResetSpreadsheet(Spreadsheet spreadsheet = null)
 		{
 			_spreadsheet = new Lazy<Spreadsheet>(() => spreadsheet == null ? GetSpreadsheet().Result : spreadsheet);
+		}
+
+		public async Task CreateSpreadsheet(string name, CancellationToken ct = default)
+		{
+			SpreadsheetsResource resource = new SpreadsheetsResource(Service);
+			Spreadsheet spreadsheet = new Spreadsheet();
+			spreadsheet.Properties = new SpreadsheetProperties
+			{
+				Title = name,
+			};
+			var createRequest = resource.Create(spreadsheet);
+			await ExecuteRequest(async token => spreadsheet = await createRequest.ExecuteAsync(token), ct);
+			SpreadsheetId = spreadsheet.SpreadsheetId;
+			ResetSpreadsheet(spreadsheet);
 		}
 
 		private async Task<Spreadsheet> GetSpreadsheet()
@@ -114,6 +124,7 @@ namespace GoogleSheetsHelper
 				StringValue = cell.StringValue,
 				NumberValue = numberValue,
 				BoolValue = cell.BoolValue,
+				FormulaValue = cell.FormulaValue,
 			};
 
 			CellData cellData = new CellData
@@ -142,9 +153,21 @@ namespace GoogleSheetsHelper
 			return cellData;
 		}
 
+		public async Task ExecuteRequests(IEnumerable<Request> requests, CancellationToken ct = default)
+		{
+			SpreadsheetsResource resource = new SpreadsheetsResource(Service);
+			var batchUpdate = resource.BatchUpdate(new BatchUpdateSpreadsheetRequest
+			{
+				Requests = requests.ToList(),
+				IncludeSpreadsheetInResponse = true,
+			}, SpreadsheetId);
+			var batchUpdateResponse = (BatchUpdateSpreadsheetResponse)await ExecuteRequest(async token => await batchUpdate.ExecuteAsync(token), ct);
+			ResetSpreadsheet(batchUpdateResponse.UpdatedSpreadsheet);
+		}
+
 		#region Sheet-related methods
 		/// <summary>Gets a list of sheet names</summary>
-		public async Task<IList<string>> GetSheets(CancellationToken ct = default)
+		public async Task<IList<string>> GetSheetNames(CancellationToken ct = default)
 		{
 			Spreadsheet response = await _policy.ExecuteAsync(async () => await Service.Spreadsheets.Get(SpreadsheetId).ExecuteAsync(ct));
 			List<string> result = response.Sheets.Select(x => x.Properties.Title).ToList();
@@ -152,15 +175,13 @@ namespace GoogleSheetsHelper
 		}
 
 		/// <summary>Adds a sheet to the document if it doesn't already exist</summary>
-		public async Task<Spreadsheet> AddSheetIfNotExists(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default)
+		public async Task<Sheet> GetOrAddSheet(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default)
 		{
-			var sheets = await GetSheets(ct);
-			if (!sheets.Any(x => string.Equals(x, title, StringComparison.OrdinalIgnoreCase)))
-			{
-				Spreadsheet updated = await AddSheet(title, columnCount, rowCount, ct);
-				ResetSpreadsheet(updated);
-			}
-			return Spreadsheet;
+			var sheets = await GetSheetNames(ct);
+			if (sheets.Any(x => string.Equals(x, title, StringComparison.OrdinalIgnoreCase)))
+				return Spreadsheet.Sheets.First(x => string.Equals(x.Properties.Title, title, StringComparison.OrdinalIgnoreCase));
+			
+			return await AddSheet(title, columnCount, rowCount, ct);
 		}
 
 		/// <summary>
@@ -169,7 +190,7 @@ namespace GoogleSheetsHelper
 		/// <param name="title">Name of the sheet</param>
 		/// <param name="columnCount">Number of columns</param>
 		/// <param name="rowCount">Number of rows</param>
-		public async Task<Spreadsheet> AddSheet(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default)
+		public async Task<Sheet> AddSheet(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default)
 		{
 			var requests = new BatchUpdateSpreadsheetRequest { Requests = new List<Request>() };
 			var request = new Request
@@ -188,29 +209,9 @@ namespace GoogleSheetsHelper
 				}
 			};
 			requests.Requests.Add(request);
-			var response = (BatchUpdateSpreadsheetResponse)await ExecuteRequest(async () => await Service.Spreadsheets.BatchUpdate(requests, SpreadsheetId).ExecuteAsync(ct));
+			var response = (BatchUpdateSpreadsheetResponse)await ExecuteRequest(async token => await Service.Spreadsheets.BatchUpdate(requests, SpreadsheetId).ExecuteAsync(token), ct);
 			ResetSpreadsheet(response.UpdatedSpreadsheet);
-			return Spreadsheet;
-		}
-
-		public async Task<IList<IList<object>>> GetOrAddSheet(string range, CancellationToken ct = default)
-		{
-			try
-			{
-				return await GetValues(range, ct);
-			}
-			catch (Exception ex)
-			{
-				if (ex.Message.Contains("Unable to parse range")) // не найдена таблица
-				{
-					await AddSheet(range, ct: ct);
-					return await GetValues(range, ct);
-				}
-				else
-				{
-					throw;
-				}
-			}
+			return Spreadsheet.Sheets.Single(x => x.Properties.Title == title);
 		}
 
 		public async Task<Spreadsheet> DeleteSheet(string sheetName, CancellationToken ct = default)
@@ -228,9 +229,33 @@ namespace GoogleSheetsHelper
 				}
 			};
 			requests.Requests.Add(request);
-			BatchUpdateSpreadsheetResponse response = (BatchUpdateSpreadsheetResponse)await ExecuteRequest(async () => await Service.Spreadsheets.BatchUpdate(requests, SpreadsheetId).ExecuteAsync(ct));
+			BatchUpdateSpreadsheetResponse response = (BatchUpdateSpreadsheetResponse)await ExecuteRequest(async token => await Service.Spreadsheets.BatchUpdate(requests, SpreadsheetId).ExecuteAsync(token), ct);
 			ResetSpreadsheet(response.UpdatedSpreadsheet);
 			return Spreadsheet;
+		}
+
+		public async Task<Sheet> RenameSheet(string oldName, string newName, CancellationToken ct = default)
+		{
+			var sheetId = GetSheetId(oldName);
+			if (sheetId == null)
+				throw new ArgumentException($"No such sheet named '{oldName}'");
+
+			Sheet sheet = Spreadsheet.Sheets.Single(x => x.Properties.SheetId == sheetId);
+			sheet.Properties.Title = newName;
+
+			List<Request> requests = new List<Request>();
+			requests.Add(new Request
+			{
+				UpdateSheetProperties = new UpdateSheetPropertiesRequest
+				{
+					Properties = sheet.Properties,
+					Fields = "title",
+				},
+			});
+
+			var updateRequest = Service.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, Spreadsheet.SpreadsheetId);
+			await ExecuteRequest(async token => await updateRequest.ExecuteAsync(token), ct);
+			return sheet;
 		}
 
 		/// <summary>
@@ -243,7 +268,7 @@ namespace GoogleSheetsHelper
 		{
 			var requestBody = new ClearValuesRequest();
 			var deleteRequest = Service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, range);
-			_ = await ExecuteRequest(async () => await deleteRequest.ExecuteAsync(ct));
+			_ = await ExecuteRequest(async token => await deleteRequest.ExecuteAsync(token), ct);
 		}
 		#endregion
 
@@ -266,7 +291,7 @@ namespace GoogleSheetsHelper
 				requestsBody.Requests.Add(r);
 			}
 			var request = Service.Spreadsheets.BatchUpdate(requestsBody, SpreadsheetId);
-			_ = await ExecuteRequest(async () => await request.ExecuteAsync(ct));
+			_ = await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
 		}
 
 		private Request CreateAppendRequest(AppendRequest r)
@@ -313,7 +338,7 @@ namespace GoogleSheetsHelper
 				requestBody.Requests.Add(r);
 			}
 			var request = Service.Spreadsheets.BatchUpdate(requestBody, SpreadsheetId);
-			_ = await ExecuteRequest(async () => await request.ExecuteAsync(ct));
+			_ = await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
 		}
 
 		private Request CreateUpdateRequest(UpdateRequest r)

@@ -9,7 +9,7 @@ namespace GoogleSheetsHelper
 	public class GoogleSheetCell
 	{
 		/// <summary>Gets or sets the string value of the cell</summary>
-		public string StringValue { get; set; }
+		public string? StringValue { get; set; }
 
 		/// <summary>Gets or sets the numeric value of a cell</summary>
 		public double? NumberValue { get; set; }
@@ -19,6 +19,9 @@ namespace GoogleSheetsHelper
 
 		/// <summary>Gets or sets the date/time value of a cell</summary>
 		public DateTime? DateTimeValue { get; set; }
+
+		/// <summary>Gets or sets the formula value of a cell</summary>
+		public string? FormulaValue { get; set; } 
 
 		/// <summary>Gets or sets the number format of a cell: see https://developers.google.com/sheets/api/guides/formats </summary>
 		public string NumberFormat { get; set; }
