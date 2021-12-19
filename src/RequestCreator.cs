@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Google.Apis.Sheets.v4.Data;
 
 namespace GoogleSheetsHelper
@@ -84,34 +85,37 @@ namespace GoogleSheetsHelper
 							FormulaValue = formula,
 						}
 					},
-					Fields = "userEnteredValue",
+					Fields = nameof(CellData.UserEnteredValue).ToCamelCase(),
 				},
 			};
 		}
 
 		/// <summary>
-		/// Creates a <see cref="RepeatCellRequest"/> to format a range of cells (assumes you want to start from the first column)
+		/// Creates a <see cref="RepeatCellRequest"/> to format a single row of cells (assumes you want to start from the first column)
 		/// </summary>
-		/// <param name="sheetId"></param>
-		/// <param name="startRowIndex"></param>
-		/// <param name="endColumnIndex"></param>
-		/// <param name="cellDataAction"></param>
+		/// <param name="sheetId">The ID of the sheet</param>
+		/// <param name="rowIndex">The index of the row where the formatting should be applied</param>
+		/// <param name="endColumnIndex">The index of the column where the formatting should end</param>
+		/// <param name="cellDataAction">The action to set the <see cref="CellData"/> properties 
+		/// (although technically you could change the values as well, this isn't set up to do so; use an <see cref="AppendRequest"/> or <see cref="UpdateRequest"/> instead)</param>
+		/// <param name="propertyNames">A collection of the names of the properties that were set in <paramref name="cellDataAction"/></param>
 		/// <returns></returns>
-		public static Request CreateRowFormattingRequest(int? sheetId, int startRowIndex, int endColumnIndex, Func<CellData> cellDataAction)
+		public static Request CreateRowFormattingRequest(int? sheetId, int rowIndex, int endColumnIndex, Func<CellData> cellDataAction, IEnumerable<string> propertyNames)
 		{
-			return CreateRowFormattingRequest(sheetId, startRowIndex, 0, endColumnIndex, cellDataAction);
+			return CreateRowFormattingRequest(sheetId, rowIndex, 0, endColumnIndex, cellDataAction, propertyNames);
 		}
 
 		/// <summary>
-		/// Creates a <see cref="RepeatCellRequest"/> to format a range of cells
+		/// Creates a <see cref="RepeatCellRequest"/> to format a row of cells
 		/// </summary>
-		/// <param name="sheetId"></param>
-		/// <param name="startRowIndex"></param>
-		/// <param name="startColumnIndex"></param>
-		/// <param name="endColumnIndex"></param>
-		/// <param name="cellDataAction"></param>
+		/// <param name="sheetId">The ID of the sheet</param>
+		/// <param name="rowIndex">The index of the row where the formatting should be applied</param>
+		/// <param name="startColumnIndex">The index of the column where the formatting should start</param>
+		/// <param name="cellDataAction">The action to set the <see cref="CellData"/> properties 
+		/// (although technically you could change the values as well, this isn't set up to do so; use an <see cref="AppendRequest"/> or <see cref="UpdateRequest"/> instead)</param>
+		/// <param name="propertyNames">A collection of the names of the properties that were set in <paramref name="cellDataAction"/></param>
 		/// <returns></returns>
-		public static Request CreateRowFormattingRequest(int? sheetId, int startRowIndex, int startColumnIndex, int endColumnIndex, Func<CellData> cellDataAction)
+		public static Request CreateRowFormattingRequest(int? sheetId, int rowIndex, int startColumnIndex, int endColumnIndex, Func<CellData> cellDataAction, IEnumerable<string> propertyNames)
 		{
 			return new Request
 			{
@@ -120,13 +124,13 @@ namespace GoogleSheetsHelper
 					Range = new GridRange
 					{
 						SheetId = sheetId,
-						StartRowIndex = startRowIndex,
+						StartRowIndex = rowIndex,
 						StartColumnIndex = startColumnIndex,
-						EndRowIndex = startRowIndex + 1,
+						EndRowIndex = rowIndex + 1,
 						EndColumnIndex = endColumnIndex + 1,
 					},
 					Cell = cellDataAction(),
-					Fields = "userEnteredFormat(backgroundColor,textFormat)",
+					Fields = $"{nameof(CellData.UserEnteredFormat).ToCamelCase()}({propertyNames.Select(x => x.ToCamelCase()).Aggregate((s1, s2) => $"{s1},{s2}")})",
 				},
 			};
 		}

@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Http;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Polly;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GoogleSheetsHelperTests")]
 namespace GoogleSheetsHelper
 {
 	public class SheetsClient : ISheetsClient
@@ -23,9 +24,10 @@ namespace GoogleSheetsHelper
 		private Lazy<Spreadsheet> _spreadsheet;
 		private static Stopwatch _stopwatch = new Stopwatch();
 		private AsyncPolicy _policy;
+		private IHttpClientFactory _clientFactory;
 
 		private SheetsService Service { get => _service.Value; }
-		private Spreadsheet Spreadsheet { get => _spreadsheet.Value; }
+		public Spreadsheet Spreadsheet { get => _spreadsheet.Value; internal set => ResetSpreadsheet(value); }
 
 		public SheetsClient(GoogleCredential credential)
 		{
@@ -52,12 +54,25 @@ namespace GoogleSheetsHelper
 			ResetSpreadsheet();
 		}
 
+		/// <summary>
+		/// This constructor is for unit testing
+		/// </summary>
+		/// <param name="clientFactory"></param>
+		internal SheetsClient(IHttpClientFactory clientFactory, string spreadsheetId)
+		{
+			_clientFactory = clientFactory;
+			_service = new Lazy<SheetsService>(() => Init(null));
+			_policy = Policy.Handle<Google.GoogleApiException>().RetryAsync(1);
+			SpreadsheetId = spreadsheetId;
+		}
+
 		private SheetsService Init(GoogleCredential credential)
 		{
 			var service = new SheetsService(new BaseClientService.Initializer()
 			{
 				HttpClientInitializer = credential,
 				ApplicationName = ApplicationName,
+				HttpClientFactory = _clientFactory,
 			});
 
 			return service;
@@ -90,18 +105,14 @@ namespace GoogleSheetsHelper
 			return await Service.Spreadsheets.Get(SpreadsheetId).ExecuteAsync();
 		}
 
-		private Sheet GetSheet(string sheetName) => Spreadsheet.Sheets.FirstOrDefault(s =>
+		private Sheet GetSheet(string sheetName) => GetSheet(sheetName, Spreadsheet);
+
+		private Sheet GetSheet(string sheetName, Spreadsheet spreadsheet) => spreadsheet.Sheets.FirstOrDefault(s =>
 				s.Properties.Title.Equals(sheetName, StringComparison.OrdinalIgnoreCase));
 
 		private int? GetSheetId(string sheetName)
 		{
-			var sheet = GetSheet(sheetName);
-			if (sheet == null)
-			{
-				ResetSpreadsheet();
-				sheet = Spreadsheet.Sheets.FirstOrDefault(s =>
-					s.Properties.Title.Equals(sheetName, StringComparison.OrdinalIgnoreCase));
-			}
+			Sheet sheet = GetSheet(sheetName);
 			return sheet?.Properties.SheetId;
 		}
 
@@ -155,14 +166,25 @@ namespace GoogleSheetsHelper
 
 		public async Task ExecuteRequests(IEnumerable<Request> requests, CancellationToken ct = default)
 		{
+			Spreadsheet spreadsheet = await ExecuteRequests(requests, null, ct);
+			ResetSpreadsheet(spreadsheet);
+		}
+
+		// this overload does NOT reset the Spreadsheet property!
+		private async Task<Spreadsheet> ExecuteRequests(IEnumerable<Request> requests, Action<BatchUpdateSpreadsheetRequest> configureAction, CancellationToken ct = default)
+		{
 			SpreadsheetsResource resource = new SpreadsheetsResource(Service);
-			var batchUpdate = resource.BatchUpdate(new BatchUpdateSpreadsheetRequest
+			BatchUpdateSpreadsheetRequest updateRequest = new BatchUpdateSpreadsheetRequest
 			{
 				Requests = requests.ToList(),
 				IncludeSpreadsheetInResponse = true,
-			}, SpreadsheetId);
+			};
+			if (configureAction != null)
+				configureAction(updateRequest);
+
+			SpreadsheetsResource.BatchUpdateRequest batchUpdate = resource.BatchUpdate(updateRequest, SpreadsheetId);
 			var batchUpdateResponse = (BatchUpdateSpreadsheetResponse)await ExecuteRequest(async token => await batchUpdate.ExecuteAsync(token), ct);
-			ResetSpreadsheet(batchUpdateResponse.UpdatedSpreadsheet);
+			return batchUpdateResponse.UpdatedSpreadsheet;
 		}
 
 		#region Sheet-related methods
@@ -249,7 +271,7 @@ namespace GoogleSheetsHelper
 				UpdateSheetProperties = new UpdateSheetPropertiesRequest
 				{
 					Properties = sheet.Properties,
-					Fields = "title",
+					Fields = nameof(SheetProperties.Title).ToLower(),
 				},
 			});
 
@@ -284,14 +306,13 @@ namespace GoogleSheetsHelper
 
 		public async Task Append(IList<AppendRequest> data, CancellationToken ct = default)
 		{
-			var requestsBody = new BatchUpdateSpreadsheetRequest { Requests = new List<Request>() };
-			foreach (var req in data)
+			var requests = new List<Request>();
+			foreach (AppendRequest req in data)
 			{
-				var r = CreateAppendRequest(req);
-				requestsBody.Requests.Add(r);
+				Request r = CreateAppendRequest(req);
+				requests.Add(r);
 			}
-			var request = Service.Spreadsheets.BatchUpdate(requestsBody, SpreadsheetId);
-			_ = await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
+			await ExecuteRequests(requests, ct);
 		}
 
 		private Request CreateAppendRequest(AppendRequest r)
@@ -331,14 +352,13 @@ namespace GoogleSheetsHelper
 		/// <summary>Updates data in a Google sheet</summary>
 		public async Task Update(IList<UpdateRequest> data, CancellationToken ct = default)
 		{
-			var requestBody = new BatchUpdateSpreadsheetRequest { Requests = new List<Request>() };
-			foreach (var req in data)
+			var requests = new List<Request>();
+			foreach (UpdateRequest req in data)
 			{
-				var r = CreateUpdateRequest(req);
-				requestBody.Requests.Add(r);
+				Request r = CreateUpdateRequest(req);
+				requests.Add(r);
 			}
-			var request = Service.Spreadsheets.BatchUpdate(requestBody, SpreadsheetId);
-			_ = await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
+			await ExecuteRequests(requests, ct);
 		}
 
 		private Request CreateUpdateRequest(UpdateRequest r)
@@ -393,7 +413,7 @@ namespace GoogleSheetsHelper
 				{
 					Dimensions = new DimensionRange
 					{
-						Dimension = "COLUMNS",
+						Dimension = SpreadsheetsResource.ValuesResource.BatchGetRequest.MajorDimensionEnum.COLUMNS.ToString(),
 						SheetId = sheet.Properties.SheetId,
 						StartIndex = columnIndex,
 						EndIndex = columnIndex + 1,
@@ -402,17 +422,14 @@ namespace GoogleSheetsHelper
 			};
 			// get the new width value in the response
 			string columnName = Utilities.ConvertIndexToColumnName(columnIndex);
-			var updateRequest = Service.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest
+			Spreadsheet updatedSheet = await ExecuteRequests(new[] { resizeRequest }, rq => 
 			{
-				Requests = new List<Request> { resizeRequest },
-				IncludeSpreadsheetInResponse = true,
-				ResponseIncludeGridData = true,
-				ResponseRanges = new List<string> { $"{sheet.Properties.Title}!{columnName}1" },
-			}, Spreadsheet.SpreadsheetId);
-			BatchUpdateSpreadsheetResponse updateResponse = (BatchUpdateSpreadsheetResponse)await _policy.ExecuteAsync(async () => await updateRequest.ExecuteAsync());
-			Sheet updatedSheet = updateResponse.UpdatedSpreadsheet.Sheets.First();
+				rq.ResponseIncludeGridData = true;
+				rq.ResponseRanges = new List<string> { $"{sheet.Properties.Title}!{columnName}1" };
+			});
 
-			return updatedSheet.Data.First().ColumnMetadata.First().PixelSize.Value;
+			sheet = GetSheet(sheetName, updatedSheet);
+			return sheet.Data.First().ColumnMetadata.First().PixelSize.Value; // we are only getting a range of one cell in the response
 		}
 		#endregion
 
