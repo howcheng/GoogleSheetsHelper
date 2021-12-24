@@ -44,7 +44,7 @@ namespace GoogleSheetsHelper
 							{
 								new ConditionValue
 								{
-									UserEnteredValue = $"={sourceSheetName}!{firstSourceCell}:{lastSourceCell}",
+									UserEnteredValue = $"={Utilities.CreateCellRangeString(firstSourceCell, lastSourceCell, sourceSheetName)}",
 								},
 							},
 						},
@@ -130,7 +130,7 @@ namespace GoogleSheetsHelper
 						EndColumnIndex = endColumnIndex + 1,
 					},
 					Cell = cellDataAction(),
-					Fields = $"{nameof(CellData.UserEnteredFormat).ToCamelCase()}({propertyNames.Select(x => x.ToCamelCase()).Aggregate((s1, s2) => $"{s1},{s2}")})",
+					Fields = propertyNames == null || propertyNames.Count() == 0 ? "*" : $"{nameof(CellData.UserEnteredFormat).ToCamelCase()}({propertyNames.Select(x => x.ToCamelCase()).Aggregate((s1, s2) => $"{s1},{s2}")})",
 				},
 			};
 		}

@@ -8,12 +8,11 @@ using System.Threading.Tasks;
 using AutoFixture;
 using Google.Apis.Http;
 using Google.Apis.Sheets.v4.Data;
-using GoogleSheetsHelper;
 using Moq;
 using Moq.Protected;
 using Xunit;
 
-namespace GoogleSheetsHelperTests
+namespace GoogleSheetsHelper.Tests
 {
 	public class SheetsClientTests
 	{

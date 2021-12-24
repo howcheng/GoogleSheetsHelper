@@ -30,11 +30,10 @@
 		/// <param name="startRowNum">The starting row number</param>
 		/// <param name="endRowNum">The ending row number</param>
 		/// <param name="options">Options to fix the column and/or row</param>
+		/// <param name="sheet">Sheet name (optional)</param>
 		/// <returns></returns>
-		public static string CreateCellRangeString(string columnName, int startRowNum, int endRowNum, CellRangeOptions options = CellRangeOptions.None)
-		{
-			return CreateCellRangeString(columnName, startRowNum, columnName, endRowNum, options);
-		}
+		public static string CreateCellRangeString(string columnName, int startRowNum, int endRowNum, CellRangeOptions options = CellRangeOptions.None, string sheet = null)
+			=> CreateCellRangeString(columnName, startRowNum, columnName, endRowNum, options, sheet);
 
 		/// <summary>
 		/// Creates a string representing a range of cells, e.g., A1:K14
@@ -44,8 +43,9 @@
 		/// <param name="endColumn">Letter indicating the last column of the range</param>
 		/// <param name="endRowNum">The ending row number</param>
 		/// <param name="options">Options to fix the column and/or row</param>
+		/// <param name="sheet">Sheet name (optional)</param>
 		/// <returns></returns>
-		public static string CreateCellRangeString(string startColumn, int startRowNum, string endColumn, int endRowNum, CellRangeOptions options = CellRangeOptions.None)
+		public static string CreateCellRangeString(string startColumn, int startRowNum, string endColumn, int endRowNum, CellRangeOptions options = CellRangeOptions.None, string sheet = null)
 		{
 			bool fixedRow = (options & CellRangeOptions.FixRow) == CellRangeOptions.FixRow;
 			bool fixedColumn = (options & CellRangeOptions.FixColumn) == CellRangeOptions.FixColumn;
@@ -53,7 +53,35 @@
 			string rowPrefix = fixedRow ? "$" : string.Empty;
 			string colPrefix = fixedColumn ? "$" : string.Empty;
 
-			return $"{colPrefix}{startColumn}{rowPrefix}{startRowNum}:{colPrefix}{endColumn}{rowPrefix}{endRowNum}";
+			return CreateCellRangeString($"{colPrefix}{startColumn}{rowPrefix}{startRowNum}", $"{colPrefix}{endColumn}{rowPrefix}{endRowNum}", sheet);
 		}
+
+		/// <summary>
+		/// Creates a string representing a range of cells, with or without another sheet name, e.g., A1:K14, 'Sheet 1'!A1:K14
+		/// </summary>
+		/// <param name="startCell"></param>
+		/// <param name="endCell"></param>
+		/// <param name="sheet">Sheet name (optional)</param>
+		/// <returns></returns>
+		public static string CreateCellRangeString(string startCell, string endCell, string sheet = null)
+		{
+			string sheetRef = CreateSheetReference(sheet);
+			return $"{sheetRef}{startCell}:{endCell}";
+		}
+
+		/// <summary>
+		/// Creates a string representing a cell reference, with or without another sheet name, e.g., A1, 'Sheet 1'!A1
+		/// </summary>
+		/// <param name="column">Letter indicating the column</param>
+		/// <param name="row">Row number</param>
+		/// <param name="sheet">Sheet name (optional)</param>
+		/// <returns></returns>
+		public static string CreateCellReference(string column, int row, string sheet = null)
+		{
+			string sheetRef = CreateSheetReference(sheet);
+			return $"{sheetRef}{column}{row}";
+		}
+
+		private static string CreateSheetReference(string sheet) => sheet == null ? $"'{0}'!" : string.Empty;
 	}
 }

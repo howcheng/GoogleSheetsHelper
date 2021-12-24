@@ -11,7 +11,7 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Polly;
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GoogleSheetsHelperTests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GoogleSheetsHelper.Tests")]
 namespace GoogleSheetsHelper
 {
 	public class SheetsClient : ISheetsClient

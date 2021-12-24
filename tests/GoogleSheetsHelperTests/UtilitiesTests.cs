@@ -1,7 +1,6 @@
-﻿using GoogleSheetsHelper;
-using Xunit;
+﻿using Xunit;
 
-namespace GoogleSheetsHelperTests
+namespace GoogleSheetsHelper.Tests
 {
 	public class UtilitiesTests
 	{

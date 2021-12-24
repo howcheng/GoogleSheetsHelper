@@ -1,21 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Google.Apis.Sheets.v4.Data;
+﻿using Google.Apis.Sheets.v4.Data;
 
 namespace GoogleSheetsHelper
 {
+	/// <summary>
+	/// Extension methods for <see cref="CellData"/> objects
+	/// </summary>
 	public static class CellDataExtensions
 	{
+		/// <summary>
+		/// Sets the background color of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="red">Integer value of the red value (1 to 255)</param>
+		/// <param name="green">Integer value of the green value (1 to 255)</param>
+		/// <param name="blue">Integer value of the blue value (1 to 255)</param>
 		public static void SetBackgroundColor(this CellData cell, int red, int green, int blue)
 			=> cell.SetBackgroundColor(System.Drawing.Color.FromArgb(red, green, blue));
 
+		/// <summary>
+		/// Sets the background color of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="color"></param>
 		public static void SetBackgroundColor(this CellData cell, System.Drawing.Color color)
 		{
 			CellFormat format = GetOrCreateCellFormat(cell);
 			format.BackgroundColor = color.ToGoogleColor();
 		}
 
+		/// <summary>
+		/// Sets the text formatting to be bold or not
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="useBold"></param>
 		public static void SetBoldText(this CellData cell, bool useBold)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
@@ -23,9 +40,21 @@ namespace GoogleSheetsHelper
 			textFormat.Bold = useBold;
 		}
 
+		/// <summary>
+		/// Sets the foreground (text) color of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="red">Integer value of the red value (1 to 255)</param>
+		/// <param name="green">Integer value of the green value (1 to 255)</param>
+		/// <param name="blue">Integer value of the blue value (1 to 255)</param>
 		public static void SetForegroundColor(this CellData cell, int red, int green, int blue)
 			=> cell.SetForegroundColor(System.Drawing.Color.FromArgb(red, green, blue));
 
+		/// <summary>
+		/// Sets the foreground (text) color of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="color"></param>
 		public static void SetForegroundColor(this CellData cell, System.Drawing.Color color)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
@@ -33,6 +62,11 @@ namespace GoogleSheetsHelper
 			textFormat.ForegroundColor = color.ToGoogleColor();
 		}
 
+		/// <summary>
+		/// Sets the horizontal alignment (justification) of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="alignment"></param>
 		public static void SetHorizontalAlignment(this CellData cell, HorizontalAlignment alignment)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);

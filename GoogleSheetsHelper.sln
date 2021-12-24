@@ -10,7 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoogleSheetsHelperTests", "tests\GoogleSheetsHelperTests\GoogleSheetsHelperTests.csproj", "{310D3CA1-5910-4160-8282-543E2CBE173B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GoogleSheetsHelper.Tests", "tests\GoogleSheetsHelperTests\GoogleSheetsHelper.Tests.csproj", "{310D3CA1-5910-4160-8282-543E2CBE173B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
