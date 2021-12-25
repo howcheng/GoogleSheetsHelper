@@ -82,6 +82,6 @@
 			return $"{sheetRef}{column}{row}";
 		}
 
-		private static string CreateSheetReference(string sheet) => sheet == null ? $"'{0}'!" : string.Empty;
+		private static string CreateSheetReference(string sheet) => sheet == null ? string.Empty : $"'{0}'!";
 	}
 }
