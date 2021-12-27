@@ -166,6 +166,9 @@ namespace GoogleSheetsHelper
 
 		public async Task ExecuteRequests(IEnumerable<Request> requests, CancellationToken ct = default)
 		{
+			if (requests.Count() == 0)
+				return;
+
 			Spreadsheet spreadsheet = await ExecuteRequests(requests, null, ct);
 			ResetSpreadsheet(spreadsheet);
 		}
@@ -173,6 +176,9 @@ namespace GoogleSheetsHelper
 		// this overload does NOT reset the Spreadsheet property!
 		private async Task<Spreadsheet> ExecuteRequests(IEnumerable<Request> requests, Action<BatchUpdateSpreadsheetRequest> configureAction, CancellationToken ct = default)
 		{
+			if (requests.Count() == 0)
+				return Spreadsheet;
+
 			SpreadsheetsResource resource = new SpreadsheetsResource(Service);
 			BatchUpdateSpreadsheetRequest updateRequest = new BatchUpdateSpreadsheetRequest
 			{

@@ -49,7 +49,7 @@ namespace GoogleSheetsHelper
 		/// <returns></returns>
 		Task<Sheet> GetOrAddSheet(string sheetName, int? columnCount = null, int? rowCount = null, CancellationToken ct = default);
 		/// <summary>
-		/// Appends data to a sheet
+		/// Appends data by adding new cells after the last row with data in a sheet, inserting new rows into the sheet if necessary.
 		/// </summary>
 		/// <param name="data"></param>
 		/// <param name="ct"></param>
