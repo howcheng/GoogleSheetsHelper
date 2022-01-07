@@ -29,7 +29,21 @@ namespace GoogleSheetsHelper
 		/// <param name="title"></param>
 		/// <param name="ct"></param>
 		/// <returns></returns>
-		Task CreateSpreadsheet(string title, CancellationToken ct = default);
+		Task<Spreadsheet> CreateSpreadsheet(string title, CancellationToken ct = default);
+		/// <summary>
+		/// Loads an existing spreadsheet
+		/// </summary>
+		/// <param name="spreadsheetId"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task<Spreadsheet> LoadSpreadsheet(string spreadsheetId, CancellationToken ct = default);
+		/// <summary>
+		/// Renames an existing spreadsheet
+		/// </summary>
+		/// <param name="newName"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task RenameSpreadsheet(string newName, CancellationToken ct = default);
 		/// <summary>
 		/// Adds a new sheet to a spreadsheet
 		/// </summary>
@@ -56,12 +70,12 @@ namespace GoogleSheetsHelper
 		/// <returns></returns>
 		Task Append(IList<AppendRequest> data, CancellationToken ct = default);
 		/// <summary>
-		/// Clears data from a sheet
+		/// Clears all values and formatting from a sheet
 		/// </summary>
-		/// <param name="range"></param>
+		/// <param name="sheetName"></param>
 		/// <param name="ct"></param>
 		/// <returns></returns>
-		Task ClearSheet(string range, CancellationToken ct = default);
+		Task ClearSheet(string sheetName, CancellationToken ct = default);
 		/// <summary>
 		/// Deletes a sheet
 		/// </summary>
@@ -97,6 +111,13 @@ namespace GoogleSheetsHelper
 		/// <param name="ct"></param>
 		/// <returns></returns>
 		Task Update(IList<UpdateRequest> data, CancellationToken ct = default);
+		/// <summary>
+		/// Clears the values of a sheet (but not the formatting)
+		/// </summary>
+		/// <param name="range">Cell range in A1 notation ("A1:C3") or R1C1 notation (row and column numbers, so "R1C1:R3C3" for "A1:C3") to clear<. For an entire sheet, use the sheet name by itself./param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task ClearValues(string range, CancellationToken ct = default);
 		/// <summary>
 		/// Resizes a column to be the width of its longest value
 		/// </summary>

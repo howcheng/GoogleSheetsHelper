@@ -134,5 +134,36 @@ namespace GoogleSheetsHelper
 				},
 			};
 		}
+
+		/// <summary>
+		/// Creates a <see cref="UpdateDimensionPropertiesRequest"/> to resize one or more columns
+		/// </summary>
+		/// <param name="sheetId">The ID of the sheet</param>
+		/// <param name="colWidth">The width to set</param>
+		/// <param name="startIdx">The starting column index</param>
+		/// <param name="endIdx">The ending column index (default: <paramref name="startIdx"/> + 1)</param>
+		/// 
+		/// <returns></returns>
+		public static Request CreateCellWidthRequest(int? sheetId, int colWidth, int startIdx, int? endIdx = null)
+		{
+			return new Request
+			{
+				UpdateDimensionProperties = new UpdateDimensionPropertiesRequest
+				{
+					Range = new DimensionRange
+					{
+						Dimension = Google.Apis.Sheets.v4.SpreadsheetsResource.ValuesResource.BatchGetRequest.MajorDimensionEnum.COLUMNS.ToString(),
+						SheetId = sheetId,
+						StartIndex = startIdx,
+						EndIndex = endIdx ?? startIdx + 1,
+					},
+					Properties = new DimensionProperties
+					{
+						PixelSize = colWidth,
+					},
+					Fields = nameof(DimensionProperties.PixelSize).ToCamelCase(),
+				},
+			};
+		}
 	}
 }

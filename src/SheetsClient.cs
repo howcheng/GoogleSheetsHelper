@@ -9,6 +9,7 @@ using Google.Apis.Http;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
+using Microsoft.Extensions.Logging;
 using Polly;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GoogleSheetsHelper.Tests")]
@@ -25,11 +26,12 @@ namespace GoogleSheetsHelper
 		private static Stopwatch _stopwatch = new Stopwatch();
 		private AsyncPolicy _policy;
 		private IHttpClientFactory _clientFactory;
+		private ILogger<SheetsClient> _log;
 
 		private SheetsService Service { get => _service.Value; }
 		public Spreadsheet Spreadsheet { get => _spreadsheet.Value; internal set => ResetSpreadsheet(value); }
 
-		public SheetsClient(GoogleCredential credential)
+		public SheetsClient(GoogleCredential credential, ILogger<SheetsClient> log)
 		{
 			_service = new Lazy<SheetsService>(() => Init(credential));
 			_policy = Policy.Handle<Google.GoogleApiException>()
@@ -37,7 +39,7 @@ namespace GoogleSheetsHelper
 				{
 					// Google Sheets API has a limit of 100 HTTP requests per 100 seconds per user
 					double secondsToWait = 100d - _stopwatch.Elapsed.TotalSeconds;
-					Console.WriteLine("Google API request quota reached; waiting {0:00} seconds...", secondsToWait);
+					_log.LogInformation("Google API request quota reached; waiting {0:00} seconds...", secondsToWait);
 					return TimeSpan.FromSeconds(secondsToWait);
 				}, (ex, ts) =>
 				{
@@ -45,10 +47,11 @@ namespace GoogleSheetsHelper
 					_stopwatch.Reset();
 					_stopwatch.Start();
 				});
+			_log = log;
 		}
 
-		public SheetsClient(GoogleCredential credential, string spreadsheetId)
-			: this(credential)
+		public SheetsClient(GoogleCredential credential, string spreadsheetId, ILogger<SheetsClient> log)
+			: this(credential, log)
 		{
 			SpreadsheetId = spreadsheetId;
 			ResetSpreadsheet();
@@ -68,14 +71,15 @@ namespace GoogleSheetsHelper
 
 		private SheetsService Init(GoogleCredential credential)
 		{
-			var service = new SheetsService(new BaseClientService.Initializer()
+			BaseClientService.Initializer initializer = new BaseClientService.Initializer()
 			{
 				HttpClientInitializer = credential,
 				ApplicationName = ApplicationName,
-				HttpClientFactory = _clientFactory,
-			});
+			};
+			if (_clientFactory != null)
+				initializer.HttpClientFactory = _clientFactory;
 
-			return service;
+			return new SheetsService(initializer);
 		}
 
 		private Task<Google.Apis.Requests.IDirectResponseSchema> ExecuteRequest(Func<CancellationToken, Task<Google.Apis.Requests.IDirectResponseSchema>> request, CancellationToken ct)
@@ -86,7 +90,7 @@ namespace GoogleSheetsHelper
 			_spreadsheet = new Lazy<Spreadsheet>(() => spreadsheet == null ? GetSpreadsheet().Result : spreadsheet);
 		}
 
-		public async Task CreateSpreadsheet(string name, CancellationToken ct = default)
+		public async Task<Spreadsheet> CreateSpreadsheet(string name, CancellationToken ct = default)
 		{
 			SpreadsheetsResource resource = new SpreadsheetsResource(Service);
 			Spreadsheet spreadsheet = new Spreadsheet();
@@ -94,15 +98,40 @@ namespace GoogleSheetsHelper
 			{
 				Title = name,
 			};
-			var createRequest = resource.Create(spreadsheet);
-			await ExecuteRequest(async token => spreadsheet = await createRequest.ExecuteAsync(token), ct);
+			SpreadsheetsResource.CreateRequest createRequest = resource.Create(spreadsheet);
+			spreadsheet = (Spreadsheet)await createRequest.ExecuteAsync(ct);// await ExecuteRequest(async token => await createRequest.ExecuteAsync(token), ct);
 			SpreadsheetId = spreadsheet.SpreadsheetId;
 			ResetSpreadsheet(spreadsheet);
+			return spreadsheet;
 		}
 
-		private async Task<Spreadsheet> GetSpreadsheet()
+		public async Task<Spreadsheet> LoadSpreadsheet(string spreadsheetId, CancellationToken ct = default)
 		{
-			return await Service.Spreadsheets.Get(SpreadsheetId).ExecuteAsync();
+			SpreadsheetId = spreadsheetId;
+			Spreadsheet spreadsheet = await GetSpreadsheet(ct);
+			ResetSpreadsheet(spreadsheet);
+			return spreadsheet;
+		}
+
+		private async Task<Spreadsheet> GetSpreadsheet(CancellationToken ct = default)
+		{
+			return await Service.Spreadsheets.Get(SpreadsheetId).ExecuteAsync(ct);
+		}
+
+		public async Task RenameSpreadsheet(string newName, CancellationToken ct = default)
+		{
+			Request request = new Request
+			{
+				UpdateSpreadsheetProperties = new UpdateSpreadsheetPropertiesRequest
+				{
+					Properties = new SpreadsheetProperties
+					{
+						Title = newName
+					},
+					Fields = nameof(SpreadsheetProperties.Title).ToCamelCase()
+				}
+			};
+			await ExecuteRequests(new[] { request }, ct);
 		}
 
 		private Sheet GetSheet(string sheetName) => GetSheet(sheetName, Spreadsheet);
@@ -244,12 +273,12 @@ namespace GoogleSheetsHelper
 
 		public async Task<Spreadsheet> DeleteSheet(string sheetName, CancellationToken ct = default)
 		{
-			var sheetId = GetSheetId(sheetName);
+			int? sheetId = GetSheetId(sheetName);
 			if (sheetId == null)
 				throw new ArgumentException($"No such sheet named '{sheetName}'");
 
 			var requests = new BatchUpdateSpreadsheetRequest { Requests = new List<Request>(), IncludeSpreadsheetInResponse = true, };
-			var request = new Request
+			Request request = new Request
 			{
 				DeleteSheet = new DeleteSheetRequest
 				{
@@ -262,9 +291,31 @@ namespace GoogleSheetsHelper
 			return Spreadsheet;
 		}
 
+		public async Task ClearSheet(string sheetName, CancellationToken ct = default)
+		{
+			int? sheetId = GetSheetId(sheetName);
+			List<Task> tasks = new List<Task>();
+			tasks.Add(ClearValues($"'{sheetName}'", ct));
+
+			// https://stackoverflow.com/questions/45801313/remove-only-formatting-on-a-cell-range-selection-with-google-spreadsheet-api
+			Request request = new Request
+			{
+				UpdateCells = new UpdateCellsRequest
+				{
+					Range = new GridRange
+					{
+						SheetId = sheetId,
+					},
+					Fields = nameof(CellData.UserEnteredFormat).ToCamelCase(),
+				},
+			};
+			tasks.Add(ExecuteRequests(new[] { request }, ct));
+			await Task.WhenAll(tasks);
+		}
+
 		public async Task<Sheet> RenameSheet(string oldName, string newName, CancellationToken ct = default)
 		{
-			var sheetId = GetSheetId(oldName);
+			int? sheetId = GetSheetId(oldName);
 			if (sheetId == null)
 				throw new ArgumentException($"No such sheet named '{oldName}'");
 
@@ -281,22 +332,9 @@ namespace GoogleSheetsHelper
 				},
 			});
 
-			var updateRequest = Service.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, Spreadsheet.SpreadsheetId);
+			SpreadsheetsResource.BatchUpdateRequest updateRequest = Service.Spreadsheets.BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, Spreadsheet.SpreadsheetId);
 			await ExecuteRequest(async token => await updateRequest.ExecuteAsync(token), ct);
 			return sheet;
-		}
-
-		/// <summary>
-		/// Clears the values of a sheet
-		/// </summary>
-		/// <param name="range">Cell range in A1 notation ("A1:C3") or R1C1 notation (row and column numbers, so "R1C1:R3C3" for "A1:C3") to clear</param>
-		/// <param name="ct"></param>
-		/// <returns></returns>
-		public async Task ClearSheet(string range, CancellationToken ct = default)
-		{
-			var requestBody = new ClearValuesRequest();
-			var deleteRequest = Service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, range);
-			_ = await ExecuteRequest(async token => await deleteRequest.ExecuteAsync(token), ct);
 		}
 		#endregion
 
@@ -401,6 +439,19 @@ namespace GoogleSheetsHelper
 
 			request.UpdateCells.Rows = listRowData;
 			return request;
+		}
+
+		/// <summary>
+		/// Clears the values of a sheet
+		/// </summary>
+		/// <param name="range">Cell range in A1 notation ("A1:C3") or R1C1 notation (row and column numbers, so "R1C1:R3C3" for "A1:C3") to clear</param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		public async Task ClearValues(string range, CancellationToken ct = default)
+		{
+			var requestBody = new ClearValuesRequest();
+			var valuesRequest = Service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, range);
+			_ = await ExecuteRequest(async token => await valuesRequest.ExecuteAsync(token), ct);
 		}
 		#endregion
 
