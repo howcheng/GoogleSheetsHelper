@@ -82,8 +82,14 @@ namespace GoogleSheetsHelper
 			return new SheetsService(initializer);
 		}
 
-		private Task<Google.Apis.Requests.IDirectResponseSchema> ExecuteRequest(Func<CancellationToken, Task<Google.Apis.Requests.IDirectResponseSchema>> request, CancellationToken ct)
-			=> _policy.ExecuteAsync(request, ct);
+		private async Task<Google.Apis.Requests.IDirectResponseSchema> ExecuteRequest(Func<CancellationToken, Task<Google.Apis.Requests.IDirectResponseSchema>> request, CancellationToken ct)
+		{
+			_stopwatch.Start();
+			Google.Apis.Requests.IDirectResponseSchema response = await _policy.ExecuteAsync(request, ct);
+			_stopwatch.Stop();
+			_stopwatch.Reset();
+			return response;
+		}
 
 		private void ResetSpreadsheet(Spreadsheet spreadsheet = null)
 		{
@@ -99,7 +105,7 @@ namespace GoogleSheetsHelper
 				Title = name,
 			};
 			SpreadsheetsResource.CreateRequest createRequest = resource.Create(spreadsheet);
-			spreadsheet = (Spreadsheet)await createRequest.ExecuteAsync(ct);// await ExecuteRequest(async token => await createRequest.ExecuteAsync(token), ct);
+			spreadsheet = (Spreadsheet)await ExecuteRequest(async token => await createRequest.ExecuteAsync(token), ct);
 			SpreadsheetId = spreadsheet.SpreadsheetId;
 			ResetSpreadsheet(spreadsheet);
 			return spreadsheet;
@@ -115,7 +121,8 @@ namespace GoogleSheetsHelper
 
 		private async Task<Spreadsheet> GetSpreadsheet(CancellationToken ct = default)
 		{
-			return await Service.Spreadsheets.Get(SpreadsheetId).ExecuteAsync(ct);
+			SpreadsheetsResource.GetRequest getRequest = Service.Spreadsheets.Get(SpreadsheetId);
+			return (Spreadsheet)await ExecuteRequest(async token => await getRequest.ExecuteAsync(token), ct);
 		}
 
 		public async Task RenameSpreadsheet(string newName, CancellationToken ct = default)
@@ -136,8 +143,8 @@ namespace GoogleSheetsHelper
 
 		private Sheet GetSheet(string sheetName) => GetSheet(sheetName, Spreadsheet);
 
-		private Sheet GetSheet(string sheetName, Spreadsheet spreadsheet) => spreadsheet.Sheets.FirstOrDefault(s =>
-				s.Properties.Title.Equals(sheetName, StringComparison.OrdinalIgnoreCase));
+		private Sheet GetSheet(string sheetName, Spreadsheet spreadsheet) 
+			=> spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title.Equals(sheetName, StringComparison.OrdinalIgnoreCase));
 
 		private int? GetSheetId(string sheetName)
 		{
@@ -226,7 +233,7 @@ namespace GoogleSheetsHelper
 		/// <summary>Gets a list of sheet names</summary>
 		public async Task<IList<string>> GetSheetNames(CancellationToken ct = default)
 		{
-			Spreadsheet response = await _policy.ExecuteAsync(async () => await Service.Spreadsheets.Get(SpreadsheetId).ExecuteAsync(ct));
+			Spreadsheet response = await GetSpreadsheet(ct);
 			List<string> result = response.Sheets.Select(x => x.Properties.Title).ToList();
 			return result;
 		}
@@ -234,7 +241,7 @@ namespace GoogleSheetsHelper
 		/// <summary>Adds a sheet to the document if it doesn't already exist</summary>
 		public async Task<Sheet> GetOrAddSheet(string title, int? columnCount = null, int? rowCount = null, CancellationToken ct = default)
 		{
-			var sheets = await GetSheetNames(ct);
+			IList<string> sheets = await GetSheetNames(ct);
 			if (sheets.Any(x => string.Equals(x, title, StringComparison.OrdinalIgnoreCase)))
 				return Spreadsheet.Sheets.First(x => string.Equals(x.Properties.Title, title, StringComparison.OrdinalIgnoreCase));
 			
@@ -341,10 +348,10 @@ namespace GoogleSheetsHelper
 		#region Data-related methods
 		public async Task<IList<IList<object>>> GetValues(string range, CancellationToken ct = default)
 		{
-			var request = Service.Spreadsheets.Values.Get(SpreadsheetId, range);
+			SpreadsheetsResource.ValuesResource.GetRequest request = Service.Spreadsheets.Values.Get(SpreadsheetId, range);
 			request.ValueRenderOption = SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.UNFORMATTEDVALUE;
 			request.DateTimeRenderOption = SpreadsheetsResource.ValuesResource.GetRequest.DateTimeRenderOptionEnum.SERIALNUMBER;
-			var response = await request.ExecuteAsync(ct);
+			ValueRange response = (ValueRange)await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
 			return response.Values;
 		}
 
