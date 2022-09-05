@@ -34,6 +34,7 @@ namespace GoogleSheetsHelper
 		public SheetsClient(GoogleCredential credential, ILogger<SheetsClient> log)
 		{
 			_service = new Lazy<SheetsService>(() => Init(credential));
+			_log = log;
 			_policy = Policy.Handle<Google.GoogleApiException>()
 				.WaitAndRetryAsync(3, (count) =>
 				{
@@ -47,7 +48,6 @@ namespace GoogleSheetsHelper
 					_stopwatch.Reset();
 					_stopwatch.Start();
 				});
-			_log = log;
 		}
 
 		public SheetsClient(GoogleCredential credential, string spreadsheetId, ILogger<SheetsClient> log)
