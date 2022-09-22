@@ -98,11 +98,26 @@ namespace GoogleSheetsHelper
 		/// <returns></returns>
 		Task<IList<string>> GetSheetNames(CancellationToken ct = default);
 		/// <summary>
-		/// Gets the values from a sheet
+		/// Gets the row data (values + cell metadata) from a sheet
 		/// </summary>
-		/// <param name="range">Cell range in A1 ("A1:C3") or R1C1 notation ("R1C1:R3C3"" -- row and column numbers)</param>
+		/// <param name="range">Cell range in A1 ("Sheet1!A1:C3") or R1C1 notation ("Sheet1!R1C1:R3C3"" -- row and column numbers)</param>
 		/// <param name="ct"></param>
 		/// <returns></returns>
+		Task<IList<RowData>> GetRowData(string range, CancellationToken ct = default);
+		/// <summary>
+		/// Gets multiple sets of row data (values + cell metadata) from a document
+		/// </summary>
+		/// <param name="ranges">Cell ranges in A1 ("Sheet1!A1:C3") or R1C1 notation ("Sheet1!R1C1:R3C3"" -- row and column numbers)</param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task<IList<IList<RowData>>> GetRowData(IEnumerable<string> ranges, CancellationToken ct = default);
+		/// <summary>
+		/// Gets the values from a sheet; NOTE: null values will be skipped!
+		/// </summary>
+		/// <param name="range">Cell range in A1 ("Sheet1!A1:C3") or R1C1 notation ("Sheet1!R1C1:R3C3"" -- row and column numbers)</param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		/// <remarks>It's Google's code that makes the choice to skip null values, so we can't change that; see <see cref="ValueRange.Values"/>.</remarks>
 		Task<IList<IList<object>>> GetValues(string range, CancellationToken ct = default);
 		/// <summary>
 		/// Updates values in a sheet

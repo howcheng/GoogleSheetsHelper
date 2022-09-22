@@ -346,6 +346,31 @@ namespace GoogleSheetsHelper
 		#endregion
 
 		#region Data-related methods
+		public async Task<IList<RowData>> GetRowData(string range, CancellationToken ct = default)
+			=> (await GetRowData(new[] { range })).FirstOrDefault();
+
+		public async Task<IList<IList<RowData>>> GetRowData(IEnumerable<string> ranges, CancellationToken ct = default)
+		{
+			SpreadsheetsResource.GetRequest request = Service.Spreadsheets.Get(SpreadsheetId);
+			request.Ranges = ranges.ToList();
+			request.IncludeGridData = true;
+			_log.LogDebug($"{nameof(GetRowData)}: Getting RowData objects for ranges: {ranges.Aggregate((s1, s2) => $"{s1}, {s2}")}");
+			Spreadsheet spreadsheet = (Spreadsheet)await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
+
+			List<IList<RowData>> ret = new List<IList<RowData>>(spreadsheet.Sheets.Count);
+			foreach (Sheet sheet in spreadsheet.Sheets)
+			{
+				if (sheet.Data == null && sheet.Data.Count == 0)
+					continue;
+
+				foreach (GridData gridData in sheet.Data)
+				{
+					ret.Add(gridData.RowData);
+				}
+			}
+			return ret;
+		}
+
 		public async Task<IList<IList<object>>> GetValues(string range, CancellationToken ct = default)
 		{
 			SpreadsheetsResource.ValuesResource.GetRequest request = Service.Spreadsheets.Values.Get(SpreadsheetId, range);

@@ -1,4 +1,6 @@
-﻿namespace GoogleSheetsHelper
+﻿using Google.Apis.Sheets.v4.Data;
+
+namespace GoogleSheetsHelper
 {
 	public static class Utilities
 	{
