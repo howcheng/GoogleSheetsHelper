@@ -380,13 +380,14 @@ namespace GoogleSheetsHelper
 			return response.Values;
 		}
 
-		public async Task Append(IList<AppendRequest> data, CancellationToken ct = default)
+		public async Task Append(IList<AppendRequest> request, CancellationToken ct = default)
 		{
-			var requests = new List<Request>();
-			foreach (AppendRequest req in data)
+			foreach (AppendRequest req in request)
 			{
+				// we need to do these serially because when done in batch the requests are done in parallel
+				// and because Append just puts data at the end, because of a race conditions, some actions will overwrite others
 				Request r = CreateAppendRequest(req);
-				requests.Add(r);
+				await ExecuteRequests(new[] { r }, ct);
 			}
 			await ExecuteRequests(requests, ct);
 		}

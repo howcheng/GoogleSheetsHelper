@@ -65,10 +65,10 @@ namespace GoogleSheetsHelper
 		/// <summary>
 		/// Appends data by adding new cells after the last row with data in a sheet, inserting new rows into the sheet if necessary.
 		/// </summary>
-		/// <param name="data"></param>
+		/// <param name="requests"></param>
 		/// <param name="ct"></param>
 		/// <returns></returns>
-		Task Append(IList<AppendRequest> data, CancellationToken ct = default);
+		Task Append(IList<AppendRequest> requests, CancellationToken ct = default);
 		/// <summary>
 		/// Clears all values and formatting from a sheet
 		/// </summary>
