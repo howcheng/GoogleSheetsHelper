@@ -14,7 +14,7 @@ namespace GoogleSheetsHelper
 		/// <param name="red">Integer value of the red value (1 to 255)</param>
 		/// <param name="green">Integer value of the green value (1 to 255)</param>
 		/// <param name="blue">Integer value of the blue value (1 to 255)</param>
-		public static void SetBackgroundColor(this CellData cell, int red, int green, int blue)
+		public static CellData SetBackgroundColor(this CellData cell, int red, int green, int blue)
 			=> cell.SetBackgroundColor(System.Drawing.Color.FromArgb(red, green, blue));
 
 		/// <summary>
@@ -22,10 +22,11 @@ namespace GoogleSheetsHelper
 		/// </summary>
 		/// <param name="cell"></param>
 		/// <param name="color"></param>
-		public static void SetBackgroundColor(this CellData cell, System.Drawing.Color color)
+		public static CellData SetBackgroundColor(this CellData cell, System.Drawing.Color color)
 		{
 			CellFormat format = GetOrCreateCellFormat(cell);
 			format.BackgroundColor = color.ToGoogleColor();
+			return cell;
 		}
 
 		/// <summary>
@@ -33,11 +34,12 @@ namespace GoogleSheetsHelper
 		/// </summary>
 		/// <param name="cell"></param>
 		/// <param name="useBold"></param>
-		public static void SetBoldText(this CellData cell, bool useBold)
+		public static CellData SetBoldText(this CellData cell, bool useBold)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
 			TextFormat textFormat = GetOrCreateTextFormat(cellFormat);
 			textFormat.Bold = useBold;
+			return cell;
 		}
 
 		/// <summary>
@@ -47,7 +49,7 @@ namespace GoogleSheetsHelper
 		/// <param name="red">Integer value of the red value (1 to 255)</param>
 		/// <param name="green">Integer value of the green value (1 to 255)</param>
 		/// <param name="blue">Integer value of the blue value (1 to 255)</param>
-		public static void SetForegroundColor(this CellData cell, int red, int green, int blue)
+		public static CellData SetForegroundColor(this CellData cell, int red, int green, int blue)
 			=> cell.SetForegroundColor(System.Drawing.Color.FromArgb(red, green, blue));
 
 		/// <summary>
@@ -55,11 +57,12 @@ namespace GoogleSheetsHelper
 		/// </summary>
 		/// <param name="cell"></param>
 		/// <param name="color"></param>
-		public static void SetForegroundColor(this CellData cell, System.Drawing.Color color)
+		public static CellData SetForegroundColor(this CellData cell, System.Drawing.Color color)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
 			TextFormat textFormat = GetOrCreateTextFormat(cellFormat);
 			textFormat.ForegroundColor = color.ToGoogleColor();
+			return cell;
 		}
 
 		/// <summary>
@@ -67,10 +70,11 @@ namespace GoogleSheetsHelper
 		/// </summary>
 		/// <param name="cell"></param>
 		/// <param name="alignment"></param>
-		public static void SetHorizontalAlignment(this CellData cell, HorizontalAlignment alignment)
+		public static CellData SetHorizontalAlignment(this CellData cell, HorizontalAlignment alignment)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
 			cellFormat.HorizontalAlignment = alignment.ToString();
+			return cell;
 		}
 
 		/// <summary>
@@ -78,11 +82,12 @@ namespace GoogleSheetsHelper
 		/// </summary>
 		/// <param name="cell"></param>
 		/// <param name="formatString"></param>
-		public static void SetNumberFormat(this CellData cell, string formatString)
+		public static CellData SetNumberFormat(this CellData cell, string formatString)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
 			NumberFormat numberFormat = GetOrCreateNumberFormat(cellFormat);
 			numberFormat.Pattern = formatString;
+			return cell;
 		}
 
 		private static CellFormat GetOrCreateCellFormat(CellData cell)
