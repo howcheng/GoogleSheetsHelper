@@ -84,5 +84,10 @@ namespace GoogleSheetsHelper
 			}
 			return new GoogleSheetCell(value.ToString());
 		}
+
+		public object CellValue
+		{
+			get => StringValue ?? FormulaValue ?? NumberValue ?? (object)BoolValue ?? DateTimeValue;
+		}
 	}
 }

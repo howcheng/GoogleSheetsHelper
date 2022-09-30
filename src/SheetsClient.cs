@@ -389,7 +389,6 @@ namespace GoogleSheetsHelper
 				Request r = CreateAppendRequest(req);
 				await ExecuteRequests(new[] { r }, ct);
 			}
-			await ExecuteRequests(requests, ct);
 		}
 
 		private Request CreateAppendRequest(AppendRequest r)
@@ -474,6 +473,28 @@ namespace GoogleSheetsHelper
 			return request;
 		}
 
+		public async Task UpdateValues(IList<UpdateRequest> requests, CancellationToken ct = default)
+		{
+			foreach (UpdateRequest updateRequest in requests)
+			{
+				int startRowNum = updateRequest.RowStart + 1;
+				int endColumnIdx = updateRequest.ColumnStart + updateRequest.Rows.Max(x => x.Count);
+				int endRowNum = startRowNum + updateRequest.Rows.Count;
+				string startCell = $"{Utilities.ConvertIndexToColumnName(updateRequest.ColumnStart)}{startRowNum}";
+				string endCell = $"{Utilities.ConvertIndexToColumnName(endColumnIdx)}{endRowNum}";
+				string range = $"'{updateRequest.SheetName}'!{startCell}:{endCell}";
+				ValueRange valueRange = new ValueRange
+				{
+					Range = range,
+					MajorDimension = "ROWS",
+					Values = updateRequest.Rows.Select(r => (IList<object>)r.Select(c => c.CellValue).ToList()).ToList(),
+				};
+				SpreadsheetsResource.ValuesResource.UpdateRequest request = Service.Spreadsheets.Values.Update(valueRange, SpreadsheetId, range);
+				request.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+				await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
+			}
+		}
+
 		/// <summary>
 		/// Clears the values of a sheet
 		/// </summary>
@@ -482,8 +503,8 @@ namespace GoogleSheetsHelper
 		/// <returns></returns>
 		public async Task ClearValues(string range, CancellationToken ct = default)
 		{
-			var requestBody = new ClearValuesRequest();
-			var valuesRequest = Service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, range);
+			ClearValuesRequest requestBody = new ClearValuesRequest();
+			SpreadsheetsResource.ValuesResource.ClearRequest valuesRequest = Service.Spreadsheets.Values.Clear(requestBody, SpreadsheetId, range);
 			_ = await ExecuteRequest(async token => await valuesRequest.ExecuteAsync(token), ct);
 		}
 		#endregion

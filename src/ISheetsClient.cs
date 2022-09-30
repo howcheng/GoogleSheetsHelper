@@ -120,12 +120,19 @@ namespace GoogleSheetsHelper
 		/// <remarks>It's Google's code that makes the choice to skip null values, so we can't change that; see <see cref="ValueRange.Values"/>.</remarks>
 		Task<IList<IList<object>>> GetValues(string range, CancellationToken ct = default);
 		/// <summary>
-		/// Updates values in a sheet
+		/// Updates cells in a sheet
 		/// </summary>
-		/// <param name="data"></param>
+		/// <param name="requests"></param>
 		/// <param name="ct"></param>
 		/// <returns></returns>
-		Task Update(IList<UpdateRequest> data, CancellationToken ct = default);
+		Task Update(IList<UpdateRequest> requests, CancellationToken ct = default);
+		/// <summary>
+		/// Updates values in a sheet (does not include other things like formatting)
+		/// </summary>
+		/// <param name="requests"></param>
+		/// <param name="ct"></param>
+		/// <returns></returns>
+		Task UpdateValues(IList<UpdateRequest> requests, CancellationToken ct = default);
 		/// <summary>
 		/// Clears the values of a sheet (but not the formatting)
 		/// </summary>

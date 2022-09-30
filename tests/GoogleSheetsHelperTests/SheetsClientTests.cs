@@ -27,15 +27,18 @@ namespace GoogleSheetsHelper.Tests
 			return response;
 		}
 
-		private SheetsClient GetClient(HttpResponseMessage response)
+		private SheetsClient GetClient(HttpResponseMessage response, Action<HttpRequestMessage, CancellationToken>? callback = null)
 		{
 			// the Google Sheets client classes don't implement interfaces, but we can mock the JSON response from Google
 
 			Mock<HttpMessageHandler> mockHandler = new Mock<HttpMessageHandler>();
-			mockHandler.Protected().Setup<Task<HttpResponseMessage>>(
+			var setup = mockHandler.Protected().Setup<Task<HttpResponseMessage>>(
 				"SendAsync",
 				ItExpr.IsAny<HttpRequestMessage>(),
-				ItExpr.IsAny<CancellationToken>()).ReturnsAsync(response);
+				ItExpr.IsAny<CancellationToken>());
+			if (callback != null)
+				setup.Callback(callback);
+			setup.ReturnsAsync(response);
 
 			ConfigurableHttpClient client = new ConfigurableHttpClient(new ConfigurableMessageHandler(mockHandler.Object));
 
@@ -104,10 +107,10 @@ namespace GoogleSheetsHelper.Tests
 			""properties"": {{ ""sheetId"": {SHEET_ID}, ""title"": ""{sheetNames.ElementAt(0)}"", ""index"": 0 }}
 		}},
 		{{
-			""properties"": {{ ""sheetId"": 1235, ""title"": ""{sheetNames.ElementAt(1)}"", ""index"": 1 }}
+			""properties"": {{ ""sheetId"": {SHEET_ID + 1}, ""title"": ""{sheetNames.ElementAt(1)}"", ""index"": 1 }}
 		}},
 		{{
-			""properties"": {{ ""sheetId"": 1236, ""title"": ""{sheetNames.ElementAt(2)}"", ""index"": 2 }}
+			""properties"": {{ ""sheetId"": {SHEET_ID + 2}, ""title"": ""{sheetNames.ElementAt(2)}"", ""index"": 2 }}
 		}}
 	]
 }}";
@@ -205,6 +208,65 @@ namespace GoogleSheetsHelper.Tests
 			int newValue = await client.AutoResizeColumn(SHEET_NAME, 1);
 
 			Assert.Equal(PIXEL_SIZE, newValue);
+		}
+
+		[Fact(Skip = "This doesn't work; there's an ObjectDisposedException when sending the request (within the Google API code, not ours), maybe because it's coming from the ValuesResource?")]
+		public async Task TestUpdateValues()
+		{
+			// this is to make sure that the cell range is calculated correctly
+
+			const string SHEET_NAME = "SHEET NAME";
+			Spreadsheet spreadsheet = new Spreadsheet
+			{
+				SpreadsheetId = SPREADSHEET_ID,
+				Sheets = new List<Sheet>
+				{
+					new Sheet
+					{
+						Properties = new SheetProperties
+						{
+							Title = SHEET_NAME,
+							SheetId = SHEET_ID,
+						}
+					}
+				}
+			};
+
+			Fixture f = new Fixture();
+			Queue<string> stringValues = new Queue<string>(f.CreateMany<string>());
+			Queue<int> intValues = new Queue<int>(f.CreateMany<int>());
+			Queue<DateTime> dateValues = new Queue<DateTime>(f.CreateMany<DateTime>());
+
+			UpdateRequest request = new UpdateRequest(SHEET_NAME)
+			{
+				ColumnStart = 4,
+				RowStart = 4,
+			};
+			while (stringValues.Count > 0)
+				request.Rows.Add(new GoogleSheetRow { GoogleSheetCell.Create(stringValues.Dequeue()), GoogleSheetCell.Create(intValues.Dequeue()), GoogleSheetCell.Create(dateValues.Dequeue()) });
+
+			// https://developers.google.com/sheets/api/reference/rest/v4/UpdateValuesResponse
+			string json = $@"{{
+  ""spreadsheetId"": {SHEET_ID},
+  ""updatedRange"": string,
+  ""updatedRows"": {request.Rows.Count},
+  ""updatedColumns"": {request.Rows.First().Count},
+  ""updatedCells"": {request.Rows.Sum(r => r.Count())},
+  ""updatedData"": {{
+	  ""range"": ""A1:C4"",
+	  ""majorDimension"": 0,
+	  ""values"": []  
+	}}
+}}";
+			HttpRequestMessage? httpRq = null;
+			Action<HttpRequestMessage, CancellationToken> callback = (msg, ct) => httpRq = msg;
+
+			SheetsClient client = GetClient(CreateResponse(json), callback);
+			client.Spreadsheet = spreadsheet;
+			await client.UpdateValues(new List<UpdateRequest> { request });
+
+			Assert.NotNull(httpRq);
+			Assert.NotNull(httpRq!.Content);
 		}
 	}
 }
