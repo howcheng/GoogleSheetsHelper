@@ -1,4 +1,7 @@
-﻿using Google.Apis.Sheets.v4.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Google.Apis.Sheets.v4.Data;
 
 namespace GoogleSheetsHelper
 {
@@ -45,5 +48,13 @@ namespace GoogleSheetsHelper
 				&& (color1.Red ?? 0) == (color2.Red ?? 0);
 
 		public static string ToCamelCase(this string s) => $"{s.Substring(0, 1).ToLower()}{s.Substring(1)}";
+
+		public static void AddRange<T>(this IList<T> list, IEnumerable<T> items)
+		{
+			foreach (T item in items)
+			{
+				list.Add(item);
+			}
+		}
 	}
 }

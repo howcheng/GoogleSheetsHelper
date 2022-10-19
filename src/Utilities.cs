@@ -1,4 +1,5 @@
-﻿using Google.Apis.Sheets.v4.Data;
+﻿using System;
+using Google.Apis.Sheets.v4.Data;
 
 namespace GoogleSheetsHelper
 {
@@ -85,5 +86,61 @@ namespace GoogleSheetsHelper
 		}
 
 		private static string CreateSheetReference(string sheet) => sheet == null ? string.Empty : $"'{sheet}'!";
+
+		/// <summary>
+		/// Creates an <see cref="UpdateRequest"/> for a "header label": a row that spans multiple columns and has only one cell that has text in it
+		/// </summary>
+		/// <param name="sheetName">The name of the sheet</param>
+		/// <param name="rowIndex">The index of the row</param>
+		/// <param name="endColumnIndex">The index of the last column that the header spans across</param>
+		/// <param name="label">The text of the header</param>
+		/// <param name="offset">The number of cells to leave blank to the left of the label (default: 0)</param>
+		/// <param name="formatter">An action to format the cell, such as by setting the background color, text color, and/or text formatting (optional)</param>
+		/// <returns></returns>
+		public static UpdateRequest CreateHeaderLabelRowRequest(string sheetName, int rowIndex, int endColumnIndex, string label, int offset, Action<GoogleSheetCell> formatter = null)
+		{
+			UpdateRequest request = new UpdateRequest(sheetName)
+			{
+				RowStart = rowIndex,
+			};
+			request.Rows.Add(CreateHeaderLabelRow(endColumnIndex, label, offset, formatter));
+			return request;
+		}
+
+		/// <summary>
+		/// Creates a "header label": a row that spans multiple columns and has only one cell that has text in it
+		/// </summary>
+		/// <param name="endColumnIndex">The index of the last column that the header spans across</param>
+		/// <param name="label">The text of the header</param>
+		/// <param name="offset">The number of cells to leave blank to the left of the label (default: 0)</param>
+		/// <param name="formatter">An action to format the cell, such as by setting the background color, text color, and/or text formatting (optional)</param>
+		/// <returns></returns>
+		public static GoogleSheetRow CreateHeaderLabelRow(int endColumnIndex, string label, int offset = 0, Action<GoogleSheetCell> formatter = null)
+		{
+			GoogleSheetRow row = new GoogleSheetRow();
+			if (offset > 0)
+			{
+				// put in a bunch of empty cells if needed
+				for (int i = 0; i < offset; i++)
+				{
+					row.Add(new GoogleSheetCell(string.Empty));
+				}
+			}
+			row.Add(new GoogleSheetCell(label));
+			if (endColumnIndex > offset)
+			{
+				// put in empty cells after the label if needed
+				for (int i = 0; i < endColumnIndex - offset; i++)
+				{
+					row.Add(new GoogleSheetCell(string.Empty));
+				}
+			}
+
+			foreach (GoogleSheetCell cell in row)
+			{
+				formatter?.Invoke(cell);
+			}
+			return row;
+		}
 	}
 }
