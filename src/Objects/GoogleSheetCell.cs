@@ -33,12 +33,26 @@ namespace GoogleSheetsHelper
 		public bool? Bold { get; set; }
 
 		/// <summary>Gets or sets the background color of a cell</summary>
-		public Color? BackgroundColor { get; set; }
+		public Color? BackgroundColor 
+		{ 
+			get => GoogleBackgroundColor?.ToSystemColor(); 
+			set => GoogleBackgroundColor = value?.ToGoogleColor(); 
+		}
 
 		/// <summary>Gets or sets the foreground (text) color of a cell</summary>
-		public Color? ForegroundColor { get; set; }
+		public Color? ForegroundColor
+		{ 
+			get => GoogleForegroundColor?.ToSystemColor(); 
+			set => GoogleForegroundColor = value?.ToGoogleColor(); 
+		}
 
-		/// <summary>Get or sets the horizontal alignment of the cell contents/summary>
+		/// <summary>Gets or sets the background color of a cell</summary>
+		public Google.Apis.Sheets.v4.Data.Color GoogleBackgroundColor { get; set; }
+
+		/// <summary>Gets or sets the foreground (text) color of a cell</summary>
+		public Google.Apis.Sheets.v4.Data.Color GoogleForegroundColor { get; set; }
+
+		/// <summary>Gets or sets the horizontal alignment of the cell contents/summary>
 		public HorizontalAlignment? HorizontalAlignment { get; set; }
 
 		public GoogleSheetCell()
@@ -85,6 +99,9 @@ namespace GoogleSheetsHelper
 			return new GoogleSheetCell(value.ToString());
 		}
 
+		/// <summary>
+		/// Gets the cell value
+		/// </summary>
 		public object CellValue
 		{
 			get => StringValue ?? FormulaValue ?? NumberValue ?? (object)BoolValue ?? DateTimeValue;

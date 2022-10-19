@@ -188,11 +188,8 @@ namespace GoogleSheetsHelper
 			if (cell.Bold.HasValue)
 				cellData.SetBoldText(cell.Bold.Value);
 
-			if (cell.BackgroundColor.HasValue)
-				cellData.SetBackgroundColor(cell.BackgroundColor.Value);
-
-			if (cell.ForegroundColor.HasValue)
-				cellData.SetForegroundColor(cell.ForegroundColor.Value);
+			cellData.SetBackgroundColor(cell.GoogleBackgroundColor);
+			cellData.SetForegroundColor(cell.GoogleForegroundColor);
 
 			if (cell.HorizontalAlignment.HasValue)
 				cellData.SetHorizontalAlignment(cell.HorizontalAlignment.Value);

@@ -17,6 +17,11 @@ namespace GoogleSheetsHelper
 			Red = color.R / 255f
 		};
 
+		public static System.Drawing.Color ToSystemColor(this Color color)
+			=> System.Drawing.Color.FromArgb(color.Alpha.FloatToByte(), color.Red.FloatToByte(), color.Green.FloatToByte(), color.Blue.FloatToByte());
+
+		private static byte FloatToByte(this float? f) => (byte)Math.Floor((f ?? 1) * 255f);
+
 		/// <summary>
 		/// Compares a <see cref="Color"/> object with a <see cref="System.Drawing.Color">System.Drawing.Color</see> object to see if they 
 		/// represent the same color

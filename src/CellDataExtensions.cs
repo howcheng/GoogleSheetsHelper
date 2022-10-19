@@ -23,9 +23,17 @@ namespace GoogleSheetsHelper
 		/// <param name="cell"></param>
 		/// <param name="color"></param>
 		public static CellData SetBackgroundColor(this CellData cell, System.Drawing.Color color)
+			=> cell.SetBackgroundColor(color.ToGoogleColor());
+
+		/// <summary>
+		/// Sets the background color of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="color"></param>
+		public static CellData SetBackgroundColor(this CellData cell, Color color)
 		{
 			CellFormat format = GetOrCreateCellFormat(cell);
-			format.BackgroundColor = color.ToGoogleColor();
+			format.BackgroundColor = color;
 			return cell;
 		}
 
@@ -58,10 +66,18 @@ namespace GoogleSheetsHelper
 		/// <param name="cell"></param>
 		/// <param name="color"></param>
 		public static CellData SetForegroundColor(this CellData cell, System.Drawing.Color color)
+			=> cell.SetBackgroundColor(color.ToGoogleColor());
+
+		/// <summary>
+		/// Sets the foreground (text) color of a cell
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <param name="color"></param>
+		public static CellData SetForegroundColor(this CellData cell, Color color)
 		{
 			CellFormat cellFormat = GetOrCreateCellFormat(cell);
 			TextFormat textFormat = GetOrCreateTextFormat(cellFormat);
-			textFormat.ForegroundColor = color.ToGoogleColor();
+			textFormat.ForegroundColor = color;
 			return cell;
 		}
 
