@@ -36,17 +36,21 @@ namespace GoogleSheetsHelper
 			_service = new Lazy<SheetsService>(() => Init(credential));
 			_log = log;
 			_policy = Policy.Handle<Google.GoogleApiException>()
-				.WaitAndRetryAsync(3, (count) =>
+				.WaitAndRetryAsync(3, (count, ex, ctx) =>
 				{
+					if (!ex.Message.Contains("quota"))
+						throw ex;
+
 					// Google Sheets API has a limit of 100 HTTP requests per 100 seconds per user
 					double secondsToWait = 100d - _stopwatch.Elapsed.TotalSeconds;
 					_log.LogInformation("Google API request quota reached; waiting {0:00} seconds...", secondsToWait);
 					return TimeSpan.FromSeconds(secondsToWait);
-				}, (ex, ts) =>
+				}, (ex, ts, count, ctx) =>
 				{
 					_stopwatch.Stop();
 					_stopwatch.Reset();
 					_stopwatch.Start();
+					return Task.CompletedTask;
 				});
 		}
 
