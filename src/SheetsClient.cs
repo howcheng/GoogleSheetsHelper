@@ -43,7 +43,7 @@ namespace GoogleSheetsHelper
 
 					// Google Sheets API has a limit of 100 HTTP requests per 100 seconds per user
 					double secondsToWait = 100d - _stopwatch.Elapsed.TotalSeconds;
-					_log.LogInformation("Google API request quota reached; waiting {0:00} seconds...", secondsToWait);
+					_log.LogInformation("Google API request quota reached; waiting {waitTime:00} seconds...", secondsToWait);
 					return TimeSpan.FromSeconds(secondsToWait);
 				}, (ex, ts, count, ctx) =>
 				{
@@ -355,7 +355,7 @@ namespace GoogleSheetsHelper
 			SpreadsheetsResource.GetRequest request = Service.Spreadsheets.Get(SpreadsheetId);
 			request.Ranges = ranges.ToList();
 			request.IncludeGridData = true;
-			_log.LogDebug($"{nameof(GetRowData)}: Getting RowData objects for ranges: {ranges.Aggregate((s1, s2) => $"{s1}, {s2}")}");
+			_log.LogDebug("{func}: Getting RowData objects for ranges: {ranges}", nameof(GetRowData), ranges.Aggregate((s1, s2) => $"{s1}, {s2}"));
 			Spreadsheet spreadsheet = (Spreadsheet)await ExecuteRequest(async token => await request.ExecuteAsync(token), ct);
 
 			List<IList<RowData>> ret = new List<IList<RowData>>(spreadsheet.Sheets.Count);
