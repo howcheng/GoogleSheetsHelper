@@ -41,16 +41,33 @@ namespace GoogleSheetsHelper
 			return Utilities.ConvertIndexToColumnName(idx);
 		}
 
+		/// <summary>
+		/// Creates a <see cref="GoogleSheetRow"/> with the given header values
+		/// </summary>
+		/// <param name="headers"></param>
+		/// <param name="formatter"></param>
+		/// <returns></returns>
 		public GoogleSheetRow CreateHeaderRow(IEnumerable<string> headers, Action<GoogleSheetCell> formatter = null)
 		{
 			GoogleSheetRow row = new GoogleSheetRow();
-			row.AddRange(headers.Select(x =>
+			row.AddRange(CreateHeaderCells(headers, formatter));
+			return row;
+		}
+
+		/// <summary>
+		/// Creates a collection of <see cref="GoogleSheetCell"/> objects from the given header values
+		/// </summary>
+		/// <param name="headers"></param>
+		/// <param name="formatter"></param>
+		/// <returns></returns>
+		public IEnumerable<GoogleSheetCell> CreateHeaderCells(IEnumerable<string> headers, Action<GoogleSheetCell> formatter = null)
+		{
+			return headers.Select(x =>
 			{
 				GoogleSheetCell cell = new GoogleSheetCell(x);
 				formatter?.Invoke(cell);
 				return cell;
-			}));
-			return row;
+			});
 		}
 	}
 }
