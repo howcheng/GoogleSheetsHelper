@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using Google.Apis.Sheets.v4.Data;
 
 namespace GoogleSheetsHelper
@@ -142,5 +143,14 @@ namespace GoogleSheetsHelper
 			}
 			return row;
 		}
+
+		/// <summary>
+		/// When using the SORT function, you pass in the column number and a Boolean value to indicate ascending (true) or descending
+		/// </summary>
+		/// <param name="colNum"></param>
+		/// <param name="direction"></param>
+		/// <returns></returns>
+		public static string CreateSortColumnReference(int colNum, ListSortDirection direction)
+			=> $"{colNum},{(direction == ListSortDirection.Ascending)}";
 	}
 }
