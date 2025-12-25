@@ -37,7 +37,9 @@ namespace GoogleSheetsHelper
 		/// <returns>The Google Sheets column name, e.g. "A" for the first item in <see cref="HeaderRowColumns"/, or <c>null</c> if it doesn't exist.</returns>
 		public string GetColumnNameByHeader(string colHeader)
 		{
-			byte idx = (byte)GetColumnIndexByHeader(colHeader);
+			int idx = GetColumnIndexByHeader(colHeader);
+			if (idx < 0)
+				return null;
 			return Utilities.ConvertIndexToColumnName(idx);
 		}
 
