@@ -66,7 +66,7 @@ namespace GoogleSheetsHelper
 		/// <param name="cell"></param>
 		/// <param name="color"></param>
 		public static CellData SetForegroundColor(this CellData cell, System.Drawing.Color color)
-			=> cell.SetBackgroundColor(color.ToGoogleColor());
+			=> cell.SetForegroundColor(color.ToGoogleColor());
 
 		/// <summary>
 		/// Sets the foreground (text) color of a cell
